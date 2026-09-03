@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime, timedelta
 from functools import lru_cache
@@ -64,15 +65,13 @@ class TushareProvider:
     def records(df: pd.DataFrame | None) -> list[dict[str, Any]]:
         if df is None or df.empty:
             return []
-        # DataFrame.to_json handles numpy scalars/NaN/Timestamp safely for FastAPI.
-        return pd.read_json(df.to_json(orient="records", force_ascii=False)).where(
-            lambda x: x.notna(), None
-        ).to_dict(orient="records")
+        # to_json normalizes numpy scalars, Timestamp and NaN for FastAPI.
+        return json.loads(df.to_json(orient="records", force_ascii=False, date_format="iso"))
 
     def query(self, api_name: str, fields: str = "", **params) -> pd.DataFrame:
         try:
             return self.pro.query(api_name, fields=fields, **params)
-        except Exception as exc:  # Tushare returns permission/rate-limit errors as exceptions.
+        except Exception as exc:
             raise RuntimeError(f"Tushare {api_name} 调用失败：{exc}") from exc
 
     @staticmethod
@@ -193,19 +192,33 @@ class TushareProvider:
         ts_code = self.normalize_stock_code(code)
         target = self.normalize_date(trade_date)
         if target is None:
-            # cyq data may lag the normal trading calendar, so discover the latest
-            # available chip-profile date first rather than assuming today's close.
             end = self.latest_trade_date()
             start = self.date_days_ago(end, 20)
             perf = self.query("cyq_perf", ts_code=ts_code, start_date=start, end_date=end)
-            if perf.empty:
-                target = end
-            else:
-                target = str(perf["trade_date"].max())
+            target = end if perf.empty else str(perf["trade_date"].max())
         df = self.query("cyq_chips", ts_code=ts_code, trade_date=target)
         if not df.empty:
             df = df.sort_values("price", ascending=False)
         return target, self.records(df)
+
+    def sector_membership(self, code: str) -> list[dict[str, Any]]:
+        ts_code = self.normalize_stock_code(code)
+        date = self.latest_trade_date()
+        try:
+            df = self.query("dc_concept_cons", ts_code=ts_code, trade_date=date)
+            if not df.empty:
+                return self.records(df)
+        except RuntimeError:
+            pass
+
+        # Low-permission fallback: at least expose the primary listed industry.
+        df = self.query(
+            "stock_basic",
+            ts_code=ts_code,
+            list_status="L",
+            fields="ts_code,name,area,industry,market,exchange,list_date",
+        )
+        return self.records(df)
 
     # ------------------------------- 打板 -------------------------------
 
@@ -214,9 +227,6 @@ class TushareProvider:
             raise ValueError("kind 仅支持 up / broken / down。")
         date = self.latest_trade_date(self.normalize_date(trade_date))
         label = self.LIMIT_KIND_MAP[kind]
-
-        # Preferred source: Tushare's THS limit list. If the account lacks the
-        # 8000-point permission, fall back to another Tushare dataset (KPL list).
         try:
             df = self.query("limit_list_ths", trade_date=date, limit_type=label)
         except RuntimeError:
@@ -255,7 +265,7 @@ class TushareProvider:
         seal_rate = round(len(up) / total_touched * 100, 2) if total_touched else None
         broken_rate = round(len(broken) / total_touched * 100, 2) if total_touched else None
 
-        nums = []
+        nums: list[int] = []
         for row in ladder:
             value = row.get("nums_numeric", row.get("nums"))
             try:
@@ -271,13 +281,13 @@ class TushareProvider:
             today_map = {r.get("ts_code"): r for r in ladder if r.get("ts_code")}
             eligible = 0
             promoted = 0
-            for code, row in prev_map.items():
+            for stock_code, row in prev_map.items():
                 try:
                     prev_num = int(float(row.get("nums_numeric", row.get("nums"))))
                 except (TypeError, ValueError):
                     continue
                 eligible += 1
-                now = today_map.get(code)
+                now = today_map.get(stock_code)
                 if not now:
                     continue
                 try:
@@ -292,7 +302,7 @@ class TushareProvider:
             pass
 
         summary = {
-            "trade_date": date,
+            "交易日": date,
             "涨停家数": len(up),
             "炸板家数": len(broken),
             "跌停家数": len(down),
@@ -316,13 +326,13 @@ class TushareProvider:
             row = df.sort_values("trade_date", ascending=False).iloc[0].to_dict()
             row["name"] = name
             rows.append(row)
-        return date, rows
+        return date, self.records(pd.DataFrame(rows))
 
     def global_indices(self, trade_date: str | None = None) -> tuple[str, list[dict[str, Any]]]:
         target = self.normalize_date(trade_date) or datetime.now(CN_TZ).strftime("%Y%m%d")
         start = self.date_days_ago(target, 12)
         rows: list[dict[str, Any]] = []
-        latest_seen = target
+        seen_dates: list[str] = []
         for name, code in self.GLOBAL_INDEX_MAP.items():
             df = self.query("index_global", ts_code=code, start_date=start, end_date=target)
             if df.empty:
@@ -330,7 +340,8 @@ class TushareProvider:
             row = df.sort_values("trade_date", ascending=False).iloc[0].to_dict()
             row["name"] = name
             rows.append(row)
-            latest_seen = max(latest_seen, str(row.get("trade_date", target)))
+            seen_dates.append(str(row.get("trade_date", "")))
+        latest_seen = max(seen_dates) if seen_dates else target
         return latest_seen, self.records(pd.DataFrame(rows))
 
     def turnover_top20(self, trade_date: str | None = None) -> tuple[str, list[dict[str, Any]]]:
@@ -346,7 +357,6 @@ class TushareProvider:
         df = df.sort_values("amount", ascending=False).head(20).copy()
         names = self._stock_names()
         df.insert(1, "name", df["ts_code"].map(names).fillna(""))
-        # Tushare daily.amount is in thousand RMB. 100,000 thousand RMB = 1 亿元.
         df["amount_yi"] = (df["amount"] / 100000).round(2)
         return date, self.records(df)
 
