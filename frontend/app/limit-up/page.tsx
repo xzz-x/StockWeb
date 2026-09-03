@@ -1,3 +1,5 @@
+"use client";
+
 import { Workbench } from "@/components/workbench";
 
 const withDate = (path: string, value: string) => {
