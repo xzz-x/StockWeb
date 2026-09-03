@@ -96,6 +96,13 @@ def fund_flow(
     if dataset == "chips":
         date, rows = invoke(provider.chip_distribution, code, trade_date)
         return payload(rows, source="Tushare cyq_chips", trade_date=date)
+    if dataset == "sector":
+        rows = invoke(provider.sector_membership, code)
+        return payload(
+            rows,
+            source="Tushare dc_concept_cons / stock_basic",
+            note="优先东财概念/行业成分；权限不足或无结果时回退到上市公司基础行业",
+        )
     raise HTTPException(status_code=404, detail=f"未知资金面数据集：{dataset}")
 
 
