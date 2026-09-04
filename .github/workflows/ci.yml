@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/**
+      - fix/**
   pull_request:
     branches:
       - main
@@ -28,6 +29,13 @@ jobs:
         run: python -m compileall -q app
       - name: Import FastAPI application
         run: python -c "from app.main import app; assert app.title == 'StockWeb API'"
+      - name: Validate Eastmoney JSON and JSONP parser
+        run: |
+          python - <<'PY'
+          from app.services.eastmoney_monitor import _decode_json_or_jsonp
+          assert _decode_json_or_jsonp('{"rc":0,"data":{"allstock":[]}}')["rc"] == 0
+          assert _decode_json_or_jsonp('jQuery123_456({"rc":0,"data":{"allstock":[]}});')["rc"] == 0
+          PY
 
   frontend:
     runs-on: ubuntu-latest
@@ -47,3 +55,8 @@ jobs:
         env:
           NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8001/api
         run: npm run build
+      - name: Validate static route export
+        run: |
+          test -f out/fund-flow/index.html
+          test -f out/limit-up/index.html
+          test -f out/daily-review/index.html
