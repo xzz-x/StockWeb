@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
+from app.services.eastmoney_monitor import EVENT_TYPES, monitor_provider
 from app.services.realtime_quote import get_realtime_stock_quotes, get_single_realtime_stock_quote
 from app.services.tudata_provider import provider
 
@@ -16,8 +17,8 @@ load_dotenv()
 
 app = FastAPI(
     title="StockWeb API",
-    version="0.1.0",
-    description="StockWeb 投研工作台后端。第一阶段数据优先来自 TuData。",
+    version="0.2.0",
+    description="StockWeb 投研工作台后端。结构化数据优先来自 TuData，实时异动使用东方财富公开行情接口。",
 )
 
 origins = [
@@ -71,7 +72,7 @@ def health():
     return {"status": "ok", "service": "stockweb-api"}
 
 
-# Legacy StockInfoWeb quote endpoints.  These stay stable so existing Excel
+# Legacy StockInfoWeb quote endpoints. These stay stable so existing Excel
 # WEBSERVICE formulas and bookmarks keep working after the server cutover.
 @app.get("/api/realtime-price/raw")
 @app.get("/api/realtime-price/raw/{code}")
@@ -188,6 +189,53 @@ def limit_emotion(
         trade_date=date,
         summary=summary,
         note="晋级率按昨日连板股票在当日继续晋级计算",
+    )
+
+
+@app.get("/api/limit-up/intraday-changes")
+def intraday_changes(
+    limit: int = Query(default=500, ge=1, le=2000),
+    direction: str | None = Query(default=None, pattern=r"^(偏强|偏弱)$"),
+    event_type: str | None = Query(default=None),
+):
+    valid_types = {label for label, _weight in EVENT_TYPES.values()}
+    if event_type and event_type not in valid_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"未知异动类型：{event_type}。支持：{', '.join(sorted(valid_types))}",
+        )
+    summary, rows = invoke(
+        monitor_provider.intraday_changes,
+        limit=limit,
+        direction=direction,
+        event_type=event_type,
+    )
+    return payload(
+        rows,
+        source="东方财富 getAllStockChanges",
+        summary=summary,
+        note="最近交易日盘口异动事件流；约 12 秒进程内缓存，盘中刷新可获得最新事件。",
+    )
+
+
+@app.get("/api/limit-up/focus-monitor")
+def focus_monitor(
+    limit: int = Query(default=80, ge=1, le=200),
+    min_events: int = Query(default=2, ge=1, le=50),
+):
+    summary, rows = invoke(
+        monitor_provider.focus_monitor,
+        limit=limit,
+        min_events=min_events,
+    )
+    return payload(
+        rows,
+        source="东方财富盘口异动 + 腾讯实时行情",
+        summary=summary,
+        note=(
+            "重点监控为 StockWeb 工程规则：按盘中异动频次、异动类型权重和方向聚合排序，"
+            "用于盯盘，不是证券交易所官方监管/重点监控名单。"
+        ),
     )
 
 
