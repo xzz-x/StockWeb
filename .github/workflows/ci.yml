@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - feature/**
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
+      - name: Compile Python
+        run: python -m compileall -q app
+      - name: Import FastAPI application
+        run: python -c "from app.main import app; assert app.title == 'StockWeb API'"
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package.json
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build Next.js
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8001/api
+        run: npm run build
