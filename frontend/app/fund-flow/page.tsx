@@ -7,10 +7,10 @@ export default function FundFlowPage() {
     <Workbench
       kicker="FUND FLOW / CHIPS"
       title="资金面 / 筹码"
-      subtitle="融资融券、大宗交易、股东户数、分红送转、个股资金流、筹码成本与板块归属集中在同一页面。第一版优先使用 Tushare，接口与展示层解耦，后续可以直接增加 MySQL 缓存或第二数据源。"
+      subtitle="融资融券、大宗交易、股东户数、分红送转、个股资金流、筹码成本与板块归属集中在同一页面。第一版优先使用 TuData，接口与展示层解耦，后续可以直接增加 MySQL 缓存或第二数据源。"
       inputPlaceholder="输入股票代码，如 600519 或 600519.SH"
       inputRequired
-      helper="输入股票代码后选择查询类型。筹码和东财概念成分等特色数据需要对应的 Tushare 积分权限；分钟资金流暂无标准 Tushare 等价接口，第一版不伪造数据。"
+      helper="输入股票代码后选择查询类型。筹码和东财概念成分等特色数据需要对应的 TuData 积分权限；分钟资金流暂无标准 TuData 等价接口，第一版不伪造数据。"
       actions={[
         { label: "融资融券", endpoint: (code) => `/fund-flow/${code}/margin` },
         { label: "大宗交易", endpoint: (code) => `/fund-flow/${code}/block-trade` },

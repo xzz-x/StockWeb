@@ -26,3 +26,7 @@ Thumbs.db
 data/
 logs/
 *.log
+
+# Deployment credentials and temporary archive
+deploy_config.json
+stockweb-deploy.tar.gz

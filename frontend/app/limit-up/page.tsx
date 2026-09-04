@@ -12,9 +12,9 @@ export default function LimitUpPage() {
     <Workbench
       kicker="LIMIT UP"
       title="打板"
-      subtitle="涨停、炸板、跌停、连板梯队与短线情绪集中查看。榜单优先使用 Tushare 同花顺涨跌停数据，权限不足时后端会尝试 Tushare 开盘啦榜单作为降级来源。"
+      subtitle="涨停、炸板、跌停、连板梯队与短线情绪集中查看。榜单优先使用 TuData 同花顺涨跌停数据，权限不足时后端会尝试 TuData 开盘啦榜单作为降级来源。"
       inputPlaceholder="交易日 YYYYMMDD；留空自动使用最近交易日"
-      helper="重点监控和日内异动在参考站属于东财专有数据；Tushare 暂无完全等价接口，因此第一版保留入口但不伪造数据，后续再接第二数据源。"
+      helper="重点监控和日内异动在参考站属于东财专有数据；TuData 暂无完全等价接口，因此第一版保留入口但不伪造数据，后续再接第二数据源。"
       actions={[
         { label: "涨停池", endpoint: (date) => withDate("/limit-up/pool?kind=up", date) },
         { label: "炸板池", endpoint: (date) => withDate("/limit-up/pool?kind=broken", date) },
@@ -26,7 +26,7 @@ export default function LimitUpPage() {
       ]}
       infoCards={[
         { title: "封板率 / 炸板率", body: "由当日涨停池与炸板池数量直接计算。" },
-        { title: "连板高度", body: "优先读取 Tushare limit_step 连板天梯。" },
+        { title: "连板高度", body: "优先读取 TuData limit_step 连板天梯。" },
         { title: "晋级率", body: "按昨日连板股在今日继续提高连板级别的比例计算。" },
       ]}
     />

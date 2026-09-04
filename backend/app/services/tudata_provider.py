@@ -8,7 +8,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import pandas as pd
-import tushare as ts
+import tudata as ts
 from dotenv import load_dotenv
 
 
@@ -16,8 +16,8 @@ CN_TZ = ZoneInfo("Asia/Shanghai")
 load_dotenv()
 
 
-class TushareProvider:
-    """Thin data-access layer around Tushare Pro.
+class TuDataProvider:
+    """Thin data-access layer around TuData.
 
     The web/API layer talks only to this provider so individual datasets can be
     cached in MySQL or replaced with fallback sources later without changing the
@@ -52,10 +52,10 @@ class TushareProvider:
     @property
     def pro(self):
         if self._pro is None:
-            token = os.getenv("TUSHARE_TOKEN", "").strip()
+            token = os.getenv("TUDATA_TOKEN", "").strip()
             if not token:
                 raise RuntimeError(
-                    "缺少 TUSHARE_TOKEN。请复制 .env.example 为 .env 并填写 Tushare Token。"
+                    "缺少 TUDATA_TOKEN。请复制 .env.example 为 .env 并填写 TuData Token。"
                 )
             ts.set_token(token)
             self._pro = ts.pro_api()
@@ -70,9 +70,12 @@ class TushareProvider:
 
     def query(self, api_name: str, fields: str = "", **params) -> pd.DataFrame:
         try:
-            return self.pro.query(api_name, fields=fields, **params)
+            result = self.pro.query(api_name, fields=fields, **params)
+            if not isinstance(result, pd.DataFrame):
+                raise RuntimeError(f"TuData 返回了非表格响应：{result}")
+            return result
         except Exception as exc:
-            raise RuntimeError(f"Tushare {api_name} 调用失败：{exc}") from exc
+            raise RuntimeError(f"TuData {api_name} 调用失败：{exc}") from exc
 
     @staticmethod
     def normalize_stock_code(code: str) -> str:
@@ -115,7 +118,7 @@ class TushareProvider:
             fields="cal_date,is_open,pretrade_date",
         )
         if df.empty:
-            raise RuntimeError("无法从 Tushare 获取最近交易日。")
+            raise RuntimeError("无法从 TuData 获取最近交易日。")
         return str(df["cal_date"].max())
 
     @lru_cache(maxsize=64)
@@ -376,4 +379,4 @@ class TushareProvider:
         return date, self.records(df.head(40) if not df.empty else df)
 
 
-provider = TushareProvider()
+provider = TuDataProvider()

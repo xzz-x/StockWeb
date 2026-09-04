@@ -10,8 +10,8 @@
 
 - Frontend: Next.js + TypeScript
 - Backend: Python + FastAPI
-- Database: MySQL + SQLAlchemy（第一版先预留连接，Tushare 可直接查询）
-- Market data: Tushare 优先
+- Database: MySQL + SQLAlchemy（第一版先预留连接，TuData 可直接查询）
+- Market data: TuData 优先
 
 ## 项目结构
 
@@ -27,7 +27,7 @@ StockWeb/
 │   └── app/
 │       ├── main.py               # FastAPI 路由
 │       ├── services/
-│       │   └── tushare_provider.py
+│       │   └── tudata_provider.py
 │       └── core/
 │           └── database.py       # MySQL / SQLAlchemy
 ├── .env.example
@@ -38,7 +38,7 @@ StockWeb/
 
 ### 1. 资金面 / 筹码
 
-| 页面功能 | Tushare 数据 |
+| 页面功能 | TuData 数据 |
 |---|---|
 | 融资融券 | `margin_detail` |
 | 大宗交易 | `block_trade` |
@@ -66,7 +66,7 @@ StockWeb/
 
 ### 3. 每日复盘
 
-| 页面功能 | Tushare 数据 |
+| 页面功能 | TuData 数据 |
 |---|---|
 | 市场总览 | `index_daily` |
 | 短线情绪 | 复用打板情绪模块 |
@@ -80,16 +80,16 @@ StockWeb/
 
 ## 数据层原则
 
-前端不直接调用 Tushare。数据流为：
+前端不直接调用 TuData。数据流为：
 
 ```text
 Next.js
    ↓ HTTP
 FastAPI
    ↓
-TushareProvider
+TuDataProvider
    ↓
-Tushare
+TuData
 ```
 
 这样后续可以改为：
@@ -101,7 +101,7 @@ FastAPI
    ↓
 Service
    ├── MySQL 缓存 / 历史数据
-   ├── Tushare
+   ├── TuData
    └── 第二数据源
 ```
 
@@ -120,12 +120,12 @@ cp .env.example .env
 然后填写：
 
 ```dotenv
-TUSHARE_TOKEN=你的_Tushare_Token
+TUDATA_TOKEN=你的_TuData_Token
 DATABASE_URL=mysql+pymysql://stockweb:你的密码@127.0.0.1:3306/stockweb?charset=utf8mb4
 CORS_ORIGINS=http://127.0.0.1:3000,http://localhost:3000
 ```
 
-不同 Tushare 特色数据接口有不同积分要求。如果某项接口权限不足，FastAPI 会返回明确错误；已经实现回退策略的接口会优先尝试备用 Tushare 数据集。
+不同 TuData 特色数据接口有不同积分要求。如果某项接口权限不足，FastAPI 会返回明确错误；已经实现回退策略的接口会优先尝试备用 TuData 数据集。
 
 ## 本地运行
 
@@ -200,11 +200,11 @@ http://127.0.0.1:3000
 
 ## MySQL
 
-第一版已经建立 SQLAlchemy MySQL 连接配置，但页面查询暂时不要求 MySQL 在线，因此可以先验证 UI、FastAPI 和 Tushare 数据链路。
+第一版已经建立 SQLAlchemy MySQL 连接配置，但页面查询暂时不要求 MySQL 在线，因此可以先验证 UI、FastAPI 和 TuData 数据链路。
 
 下一阶段再把需要高频读取的日频数据落到 MySQL，主要目的：
 
-1. 减少重复调用 Tushare；
+1. 减少重复调用 TuData；
 2. 保留历史快照；
 3. 支持更复杂的复盘统计；
 4. 给未来的定时任务和自定义模型提供统一数据层。
@@ -239,7 +239,7 @@ GitHub Actions 会执行：
 
 ## 当前边界
 
-- `重点监控`、`日内异动`、`分钟资金流`：参考网站有对应功能，但 Tushare 暂无完全等价的标准接口，因此第一版不使用虚假/mock 行情填充。
+- `重点监控`、`日内异动`、`分钟资金流`：参考网站有对应功能，但 TuData 暂无完全等价的标准接口，因此第一版不使用虚假/mock 行情填充。
 - MySQL：连接层已经准备好，缓存表和定时落库将在下一阶段加入。
 - 页面第一版以数据可用性、接口完整性和移动端可读性为优先；图表化和更细的交互将在后续迭代加入。
 

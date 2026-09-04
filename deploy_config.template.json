@@ -1,0 +1,15 @@
+{
+  "host": "your_server_ip",
+  "port": 22,
+  "username": "root",
+  "password": "",
+  "key_filename": "",
+  "remote_dir": "/var/www/stockweb",
+  "domain_or_ip": "your_server_ip",
+  "backend_port": 8001,
+  "environment": {
+    "TUDATA_TOKEN": "",
+    "DATABASE_URL": "mysql+pymysql://stockweb:change_me@127.0.0.1:3306/stockweb?charset=utf8mb4",
+    "CORS_ORIGINS": "http://127.0.0.1,http://localhost"
+  }
+}
