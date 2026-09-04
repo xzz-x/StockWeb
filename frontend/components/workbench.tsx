@@ -32,8 +32,10 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8001/
 const LABELS: Record<string, string> = {
   trade_date: "交易日",
   ts_code: "代码",
+  code: "代码",
   name: "名称",
   price: "价格",
+  change_percent: "实时涨跌幅%",
   pct_chg: "涨跌幅%",
   pct_change: "涨跌幅%",
   close: "收盘",
@@ -92,6 +94,22 @@ const LABELS: Record<string, string> = {
   net_amount: "主力净流入(元)",
   net_amount_yi: "主力净流入(亿元)",
   net_buy_amount: "净流入(亿元)",
+  event_time: "异动时间",
+  event_type: "异动类型",
+  direction: "方向",
+  signal_weight: "信号权重",
+  related_info: "相关信息",
+  event_code: "异动代码",
+  market: "市场标记",
+  monitor_score: "监控分",
+  signal_bias: "监控方向",
+  event_count: "异动次数",
+  positive_count: "偏强次数",
+  negative_count: "偏弱次数",
+  unique_event_types: "异动类型数",
+  latest_time: "最近异动",
+  latest_event: "最近类型",
+  event_types: "主要异动构成",
 };
 
 function displayValue(value: unknown) {
@@ -232,7 +250,7 @@ export function Workbench({ kicker, title, subtitle, inputPlaceholder, inputRequ
                   </thead>
                   <tbody>
                     {data.rows.map((row, index) => (
-                      <tr key={`${String(row.ts_code || "row")}-${String(row.trade_date || index)}-${index}`}>
+                      <tr key={`${String(row.ts_code || row.code || "row")}-${String(row.trade_date || row.event_time || index)}-${index}`}>
                         {columns.map((column) => <td key={column}>{displayValue(row[column])}</td>)}
                       </tr>
                     ))}
